@@ -163,7 +163,7 @@ ANYMAIL = {
     "MAILGUN_SENDER_DOMAIN": env("MAILGUN_SENDER_DOMAIN"),
 }
 
-FROM_EMAIL='achyutp10@gmail.com'
+FROM_EMAIL='icoder.mee@gmail.com'
 EMAIL_BACKEND = 'anymail.backends.mailgun.EmailBackend'
 
 
@@ -222,7 +222,7 @@ JAZZMIN_UI_TWEAKS = {
 
 
 SIMPLE_JWT = {
-    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=15),
+    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=50),
     'REFRESH_TOKEN_LIFETIME': timedelta(days=50),
     'ROTATE_REFRESH_TOKENS': True,
     'BLACKLIST_AFTER_ROTATION': True,

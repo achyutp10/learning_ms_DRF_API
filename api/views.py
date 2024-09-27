@@ -145,62 +145,65 @@ class CourseDetailAPIView(generics.RetrieveAPIView):
        return course
 
 class CartAPIView(generics.CreateAPIView):
-   queryset = api_model.Cart.objects.all()
-   serializer_class = api_serializer.CartSerializer
-   permission_classes = [AllowAny]
+    queryset = api_model.Cart.objects.all()
+    serializer_class = api_serializer.CartSerializer
+    permission_classes = [AllowAny]
 
-   def create(self, request, *args, **kwargs):
-      course_id = request.data['course_id']
-      user_id = request.data['user_id']
-      price = request.data['price']
-      country_name = request.data['country_name']
-      cart_id = request.data['cart_id']
+    def create(self, request, *args, **kwargs):
+        course_id = request.data['course_id']  
+        user_id = request.data['user_id']
+        price = request.data['price']
+        country_name = request.data['country_name']
+        cart_id = request.data['cart_id']
 
-      course = api_model.Course.objects.filter(id=course_id).first()
-      if user_id != "undefined":
-        user = User.objects.filter(id=user_id).first()
-      else:
-         user = None
-      
-      try:
-         country_object = api_model.Country.objects.filter(name=country_name).first()
-         country = country_object.name
-      except:
-         country_object = None
-         country = "United States"
-      
-      if country_object:
-         tax_rate = country_object.tax_rate/100
-      else:
-         tax_rate = 0
-      
-      cart = api_model.Cart.objects.filter(cart_id=cart_id, course=course).first()
-      
-      if cart:
-         cart.course=course
-         cart.user=user
-         cart.price=price
-         cart.tax_fee=Decimal(price)*Decimal(tax_rate)
-         cart.country=country
-         cart.cart_id=cart_id
-         cart.total=Decimal(cart.price)+Decimal(cart.tax_fee)
-         cart.save()
+        print("course_id ==========", course_id)
 
-         return Response({"message": "Cart Updated Successfully"}, status=status.HTTP_200_OK)
-      
-      else:
-         cart = api_model.Cart()
+        course = api_model.Course.objects.filter(id=course_id).first()
+        
+        if user_id != "undefined":
+            user = User.objects.filter(id=user_id).first()
+        else:
+            user = None
 
-         cart.course=course
-         cart.user=user
-         cart.price=price
-         cart.tax_fee=Decimal(price)*Decimal(tax_rate)
-         cart.country=country
-         cart.cart_id=cart_id
-         cart.total=Decimal(cart.price)+Decimal(cart.tax_fee)
-         cart.save()
+        try:
+            country_object = api_model.Country.objects.filter(name=country_name).first()
+            country = country_object.name
+        except:
+            country_object = None
+            country = "United States"
 
-         return Response({"message": "Cart Created Successfully"}, status=status.HTTP_201_CREATED)
+        if country_object:
+            tax_rate = country_object.tax_rate / 100
+        else:
+            tax_rate = 0
+
+        cart = api_model.Cart.objects.filter(cart_id=cart_id, course=course).first()
+
+        if cart:
+            cart.course = course
+            cart.user = user
+            cart.price = price
+            cart.tax_fee = Decimal(price) * Decimal(tax_rate)
+            cart.country = country
+            cart.cart_id = cart_id
+            cart.total = Decimal(cart.price) + Decimal(cart.tax_fee)
+            cart.save()
+
+            return Response({"message": "Cart Updated Successfully"}, status=status.HTTP_200_OK)
+
+        else:
+            cart = api_model.Cart()
+
+            cart.course = course
+            cart.user = user
+            cart.price = price
+            cart.tax_fee = Decimal(price) * Decimal(tax_rate)
+            cart.country = country
+            cart.cart_id = cart_id
+            cart.total = Decimal(cart.price) + Decimal(cart.tax_fee)
+            cart.save()
+
+            return Response({"message": "Cart Created Successfully"}, status=status.HTTP_201_CREATED)
 
 class CartListAPIView(generics.ListAPIView):
    serializer_class = api_serializer.CartSerializer
@@ -350,133 +353,145 @@ class CouponApplyAPIView(generics.CreateAPIView):
                 order.save()
                 coupon.used_by.add(order.student)
 
-                return Response({"message": "Coupon found and Activated"}, status=status.HTTP_201_CREATED)
+                return Response({"message": "Coupon found and Activated", "icon": "success"}, status=status.HTTP_201_CREATED)
             else:
-               return Response({"message": "Coupon already applied"}, status=status.HTTP_200_OK)
+               return Response({"message": "Coupon already applied", "icon": "warning"}, status=status.HTTP_200_OK)
       else:
-         return Response({"message": "Coupon not found"}, status=status.HTTP_404_NOT_FOUND)
+         return Response({"message": "Coupon not found", "icon": "error"}, status=status.HTTP_404_NOT_FOUND)
 
 class StripeCheckoutAPIView(generics.CreateAPIView):
-   serializer_class = api_serializer.CartOrderSerializer
-   permission_classes = [AllowAny]
+    serializer_class = api_serializer.CartOrderSerializer
+    permission_classes = [AllowAny]
 
-   def create(self, request, *args, **kwargs):
-      order_oid = self.kwargs['order_oid']
-      order = api_model.CartOrder.objects.get(oid=order_oid)
-      
-      if not order:
-         return Response({"message": "Order Not Found"}, status=status.HTTP_404_NOT_FOUND)
-      
-      try:
-         checkout_session = stripe.checkout.Session.create(
-            customer_email=order.email,
-            payment_method_types=['card'],
-            line_items=[
-               {
-                'price_data': {
-                   'currency': 'usd',
-                   'product_data': {
-                     'name': order.full_name,
-                   },
-                   'unit_amount': int(order.total*100), 
-                },
-                'quantity': 1,
-            }
-            ],
-            mode='payment',
-            success_url=settings.FRONTEND_SITE_URL + '/payment-success/' + order.oid + '?session_id={CHECKOUT_SESSION_ID}',
+    def create(self, request, *args, **kwargs):
+        
+        order_oid = self.kwargs['order_oid']
+        order = api_model.CartOrder.objects.get(oid=order_oid)
 
-            cancel_url=settings.FRONTEND_SITE_URL + '/payment-failed/',
-         )
-         print(checkout_session)
+        if not order:
+            return Response({"message": "Order Not Found"}, status=status.HTTP_404_NOT_FOUND)
+        
+        try:
+            checkout_session = stripe.checkout.Session.create(
+                customer_email = order.email,
+                payment_method_types=['card'],
+                line_items=[
+                    {
+                        'price_data': {
+                            'currency': 'usd',
+                            'product_data': {
+                                'name': order.full_name,
+                            },
+                            'unit_amount': int(order.total * 100)
+                        },
+                        'quantity': 1
+                    }
+                ],
+                mode='payment',
+                success_url=settings.FRONTEND_SITE_URL + '/payment-success/' + order.oid + '?session_id={CHECKOUT_SESSION_ID}',
+                cancel_url= settings.FRONTEND_SITE_URL + '/payment-failed/'
+            )
+            print("checkout_session ====", checkout_session)
+            order.stripe_session_id = checkout_session.id
 
-         order.stripe_session_id=checkout_session.id
-         return redirect(checkout_session.url)
-      except stripe.error.StripeError as e:
-         return Response({"message": f"Something went wrong while trying to payment. Error: {str(e)}"})
-      
+            return redirect(checkout_session.url)
+        except stripe.error.StripeError as e:
+            return Response({"message": f"Something went wrong when trying to make payment. Error: {str(e)}"})
+
+
 def get_access_token(client_id, secret_key):
-   token_url="https://api.sandbox.paypal.com/v1/oauth2/token"
-   data = {'grant_type': 'client_credentials'}
-   auth = (client_id, secret_key)
-   response = requests.post(token_url, auth=auth, data=data)
+    token_url = "https://api.sandbox.paypal.com/v1/oauth2/token"
+    data = {'grant_type': 'client_credentials'}
+    auth = (client_id, secret_key)
+    response = requests.post(token_url, data=data, auth=auth)
 
-   if response.status_code == 200:
-      print("Access Token ===", response.json()['access_token'])
-      return response.json()['access_token']
-   else:
-      raise Exception(f"Failed to get access token from paypal {response.status_code}")
+    if response.status_code == 200:
+        print("Access TOken ====", response.json()['access_token'])
+        return response.json()['access_token']
+    else:
+        raise Exception(f"Failed to get access token from paypal {response.status_code}")
+    
 
 class PaymentSuccessAPIView(generics.CreateAPIView):
-   serializer_class = api_serializer.CartOrderSerializer
-   queryset = api_model.CartOrder.objects.all()
+    serializer_class = api_serializer.CartOrderSerializer
+    queryset = api_model.CartOrder.objects.all()
 
-   def creata(self, request, *args, **kwargs):
-      order_oid = request.data['order_oid']
-      session_id = request.data['session_id']
-      paypal_order_id = request.data['paypal_order_id']
+    def create(self, request, *args, **kwargs):
+        order_oid = request.data['order_oid']
+        session_id = request.data['session_id']
+        paypal_order_id = request.data['paypal_order_id']
 
-      order = api_model.CartOrder.objects.get(oid=order_oid)
-      order_items = api_model.CartOrderItem.objects.filter(order=order)
+        order = api_model.CartOrder.objects.get(oid=order_oid)
+        order_items = api_model.CartOrderItem.objects.filter(order=order)
 
-      #Paypal Payment Success
 
-      if paypal_order_id != "null":
-         paypal_api_url = f"https://api-m.sandbox.paypal.com/v2/checkout/orders/{paypal_order_id}"
-         headers = {
-            "Content-Type": "application/json",
-            "Authorization": f"Bearer {get_access_token(PAYPAL_CLIENT_ID, PAYPAL_SECRET_ID)}"
-         }
-         response = request.get(paypal_api_url, headers=headers)
-         if response.status_code == 200:
-            paypal_order_data = response.json()
-            paypal_payment_status = paypal_order_data['status']
-            if paypal_payment_status == "COMPLETED":
-               if order.payment_status == "Processing":
-                  order.payment_status = "Paid"
-                  order.save()
-                  api_model.Notification.objects.create(user=order.student, order=order, type='Course Enrollment Completed')
+        # Paypal payment success
+        if paypal_order_id != "null":
+            paypal_api_url = f"https://api-m.sandbox.paypal.com/v2/checkout/orders/{paypal_order_id}"
+            headers = {
+                'Content-Type': 'application/json',
+                'Authorization': f"Bearer {get_access_token(PAYPAL_CLIENT_ID, PAYPAL_SECRET_ID)}"
+            }
+            response = requests.get(paypal_api_url, headers=headers)
+            if response.status_code == 200:
+                paypal_order_data = response.json()
+                paypal_payment_status = paypal_order_data['status']
+                if paypal_payment_status == "COMPLETED":
+                    if order.payment_status == "Processing":
+                        order.payment_status = "Paid"
+                        order.save()
+                        api_model.Notification.objects.create(user=order.student, order=order, type="Course Enrollment Completed")
 
-                  for o in order_items:
-                     api_model.Notification.objects.create(teacher=o.teacher, order=order, order_item=o, type='New Order')
-                     api_model.EnrolledCourse.objects.create(
-                        course=o.course,
-                        user=order.student,
-                        teacher=o.teacher,
-                        order_item=o
-                     )
-                  return Response({"message": "Payment Successful. Thank You"})
-               else:
-                  return Response({"message": "You have already paid. Thank You"})
+                        for o in order_items:
+                            api_model.Notification.objects.create(
+                                teacher=o.teacher,
+                                order=order,
+                                order_item=o,
+                                type="New Order",
+                            )
+                            api_model.EnrolledCourse.objects.create(
+                                course=o.course,
+                                user=order.student,
+                                teacher=o.teacher,
+                                order_item=o
+                            )
+
+                        return Response({"message": "Payment Successfull"})
+                    else:
+                        return Response({"message": "Already Paid"})
+                else:
+                    return Response({"message": "Payment Failed"})
             else:
-               return Response({"message": "Payment Failed"})
-         else:
-            return Response({"message": f"Failed to get paypal order data. Error: {response.status_code}"})
-               
+                return Response({"message": "PayPal Error Occured"})
 
-      #Stripe Payment Success
-      if session_id!= "null":
+
+        # Stripe payment success
+        if session_id != 'null':
             session = stripe.checkout.Session.retrieve(session_id)
             if session.payment_status == "paid":
-               if order.payment_status == "Processing":
-                  order.payment_status = "Paid"
-                  order.save()
-                  api_model.Notification.objects.create(user=order.student, order=order, type='Course Enrollment Completed')
+                if order.payment_status == "Processing":
+                    order.payment_status = "Paid"
+                    order.save()
 
-                  for o in order_items:
-                     api_model.Notification.objects.create(teacher=o.teacher, order=order, order_item=o, type='New Order')
-                     api_model.EnrolledCourse.objects.create(
-                        course=o.course,
-                        user=order.student,
-                        teacher=o.teacher,
-                        order_item=o
-                     )
-
-                  return Response({"message": "Payment Successful."})
-               else:
-                  return Response({"message": "Already Paid."})
+                    api_model.Notification.objects.create(user=order.student, order=order, type="Course Enrollment Completed")
+                    for o in order_items:
+                        api_model.Notification.objects.create(
+                            teacher=o.teacher,
+                            order=order,
+                            order_item=o,
+                            type="New Order",
+                        )
+                        api_model.EnrolledCourse.objects.create(
+                            course=o.course,
+                            user=order.student,
+                            teacher=o.teacher,
+                            order_item=o
+                        )
+                    return Response({"message": "Payment Successfull"})
+                else:
+                    return Response({"message": "Already Paid"})
             else:
-               return Response({"message": "Payment Failed"})
+                    return Response({"message": "Payment Failed"})
 
 class SearchCourseAPIView(generics.ListAPIView):
    serializer_class = api_serializer.CourseSerializer
@@ -487,26 +502,32 @@ class SearchCourseAPIView(generics.ListAPIView):
       return api_model.Course.objects.filter(title__icontains=query, platform_status="Published", teacher_course_status="Published")
 
 class StudentSummaryAPIView(generics.ListAPIView):
-   serializer_class = api_serializer.StudentSummarySerializer
-   permission_classes = [AllowAny]
+    serializer_class = api_serializer.StudentSummarySerializer
+    permission_classes = [AllowAny]
 
-   def get_queryset(self):
-      user_id = self.kwargs['user_id']
-      user = User.objects.get(id=user_id)
+    def get_queryset(self):
+        user_id = self.kwargs['user_id']
+        user = User.objects.get(id=user_id)
 
-      total_courses = api_model.EnrolledCourse.objects.filter(user=user).count()
-      completed_lessons = api_model.CompletedLesson.objects.filter(user=user).count()
-      achieved_certificates = api_model.Certificate.objects.filter(user=user).count()
-      return {
-         "total_courses": total_courses,
-         "completed_lessons": completed_lessons,
-         "achieved_certificates": achieved_certificates,
-      }
-   
-   def list(self, requset, *args, **kwargs):
-      queryset = self.get_queryset()
-      serializer = self.get_serializer(queryset, many=True)
-      return Response(serializer.data)
+        total_courses = api_model.EnrolledCourse.objects.filter(user=user).count()
+        completed_lessons = api_model.CompletedLesson.objects.filter(user=user).count()
+        achieved_certificates = api_model.Certificate.objects.filter(user=user).count()
+
+        # Logging for debugging
+        print(f"User: {user}, Total Courses: {total_courses}, Completed Lessons: {completed_lessons}, Achieved Certificates: {achieved_certificates}")
+        
+        return {
+            "total_courses": total_courses,
+            "completed_lessons": completed_lessons,
+            "achieved_certificates": achieved_certificates,
+        }
+
+    def list(self, request, *args, **kwargs):
+        summary_data = self.get_queryset()  # Get the summary data dictionary
+        serializer = self.get_serializer(data=summary_data)  # Pass the dictionary to the serializer
+        serializer.is_valid(raise_exception=True)  # Validate the data
+        return Response(serializer.validated_data)  # Return the validated data
+
 
 class StudentCourseListAPIView(generics.ListAPIView):
    serializer_class = api_serializer.EnrolledCourseSerializer
@@ -535,7 +556,7 @@ class StudentCourseCompletedCreateAPIView(generics.CreateAPIView):
    def create(self, request, *args, **kwargs):
       user_id = request.data['user_id']
       course_id = request.data['course_id']
-      variant_item_id = self.kwargs['variant_item_id']
+      variant_item_id = request.data['variant_item_id']
 
       user = User.objects.get(id=user_id)
       course = api_model.Course.objects.get(id=course_id)
@@ -571,24 +592,24 @@ class StudentNoteCreateAPIView(generics.ListCreateAPIView):
       return api_model.Note.objects.filter(user=user, course=enrolled.course)
    
    def create(self, request, *args, **kwargs):
-      user_id = request.data['user_id']
-      enrollment_id = request.data['enrollment_id']
-      title = request.data['title']
-      note = request.data['note']
+    user_id = request.data['user_id']  # Get user_id from URL kwargs
+    enrollment_id = request.data['enrollment_id']  # Get enrollment_id from URL kwargs
+    title = request.data['title']
+    note = request.data['note']
 
-      user = User.objects.get(id=user_id)
-      enrolled = api_model.EnrolledCourse.objects.get(enrollment_id=enrollment_id)
-      
-      api_model.Note.objects.create(
-            user=user,
-            course=enrolled.course,
-            enrollment=enrolled,
-            note=note,
-            title=title
-         )   
-      return Response({"message": "Note created successfully"}, status=status.HTTP_201_CREATED)
+    user = User.objects.get(id=user_id)
+    enrolled = api_model.EnrolledCourse.objects.get(enrollment_id=enrollment_id)
 
-class StudentNoteDetailAPIView(generics.RetrieveUpdateAPIView):
+    api_model.Note.objects.create(
+        user=user,
+        course=enrolled.course,
+        note=note,
+        title=title
+    )   
+    return Response({"message": "Note created successfully"}, status=status.HTTP_201_CREATED)
+
+
+class StudentNoteDetailAPIView(generics.RetrieveUpdateDestroyAPIView):
    serializer_class = api_serializer.NoteSerializer
    permission_classes = [AllowAny]
 
@@ -1113,8 +1134,8 @@ class CourseDetailAPIView(generics.RetrieveDestroyAPIView):
     permission_classes = [AllowAny]
 
     def get_object(self):
-        course_id = self.kwargs['course_id']
-        return api_model.Course.objects.get(course_id=course_id)
+        slug = self.kwargs['slug']
+        return api_model.Course.objects.get(slug=slug)
 
 
 class CourseVariantDeleteAPIView(generics.DestroyAPIView):
