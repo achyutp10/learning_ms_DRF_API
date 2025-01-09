@@ -723,8 +723,8 @@ class QuestionAnswerMessageSendAPIView(generics.CreateAPIView):
    permission_classes = [AllowAny]
    
    def create(self, request, *args, **kwargs):
-      course_id = self.kwargs['course_id']
-      qa_id = self.kwargs['qa_id']
+      course_id = request.data['course_id']
+      qa_id = request.data['qa_id']
       user_id = request.data['user_id']
       message = request.data['message']
       
